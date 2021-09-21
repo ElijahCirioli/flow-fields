@@ -8,7 +8,7 @@ const numParticles = 2000;
 const particleSpeed = 4;
 const particleLife = 500;
 const numOrbs = 4;
-const forceStrength = 0.03;
+const forceStrength = 0.04;
 const fieldOffset = 50;
 const fieldRadius = 3;
 
@@ -119,7 +119,7 @@ class Orb {
 	}
 
 	draw() {
-		context.fillStyle = "red";
+		context.fillStyle = "black";
 		context.beginPath();
 		context.arc(this.pos.x, this.pos.y, this.radius, 0, 7);
 		context.fill();
@@ -191,10 +191,6 @@ const simulateAllParticles = () => {
 	// draw the background
 	context.fillStyle = "rgba(0, 0, 0, 0.8)";
 	context.fillRect(0, 0, canvas.width, canvas.height);
-
-	for (const o of orbs) {
-		//o.draw();
-	}
 
 	// add particles if there aren't enough
 	while (particles.length < numParticles) {
