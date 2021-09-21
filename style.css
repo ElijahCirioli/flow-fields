@@ -1,0 +1,10 @@
+#canvas-wrap {
+	background-color: black;
+	perspective: 200px;
+	perspective-origin: 50% 10%;
+	width: 500px;
+	overflow: hidden;
+}
+#my-canvas {
+	transform: rotateX(90deg) rotateZ(-90deg);
+}

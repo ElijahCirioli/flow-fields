@@ -3,12 +3,14 @@ const context = canvas.getContext("2d");
 
 const field = [];
 const particles = [];
+const orbs = [];
 const numParticles = 2000;
 const particleSpeed = 4;
-const particleLife = 1000;
-const radius = 5;
-const forceStrength = 0.1;
+const particleLife = 500;
+const numOrbs = 4;
+const forceStrength = 0.03;
 const fieldOffset = 50;
+const fieldRadius = 3;
 
 class Vec {
 	constructor(x, y) {
@@ -31,6 +33,10 @@ class Vec {
 		this.x *= len / magnitude;
 		this.y *= len / magnitude;
 	}
+
+	clone() {
+		return new Vec(this.x, this.y);
+	}
 }
 
 class Particle {
@@ -42,11 +48,18 @@ class Particle {
 
 	simulate() {
 		if (this.inBounds()) {
-			const dir = field[Math.floor(p.pos.y / radius)][Math.floor((p.pos.x + fieldOffset) / radius)];
+			const dir = field[Math.floor(p.pos.y / fieldRadius)][Math.floor((p.pos.x + fieldOffset) / fieldRadius)];
 			const slope = new Vec(Math.cos(dir) * forceStrength, Math.sin(dir) * forceStrength);
 			this.applyForce(slope);
 		}
+		const lastPos = this.pos.clone();
 		this.move();
+		for (const o of orbs) {
+			if (o.collision(this.pos)) {
+				this.pos = lastPos;
+				this.bounceOffOrb(o);
+			}
+		}
 		this.draw();
 		this.life++;
 	}
@@ -86,14 +99,44 @@ class Particle {
 		}
 		return true;
 	}
+
+	bounceOffOrb(o) {
+		const normalVec = new Vec(this.pos.x - o.pos.x, this.pos.y - o.pos.y);
+		normalVec.normalize(1);
+		const angle = (this.vel.x * normalVec.x + this.vel.y * normalVec.y) / particleSpeed;
+		normalVec.normalize(2 * angle);
+		this.vel.subtract(normalVec);
+		this.vel.normalize(particleSpeed);
+		this.move();
+	}
+}
+
+class Orb {
+	constructor(pos, radius) {
+		this.pos = pos;
+		this.radius = radius;
+		this.squaredRadius = Math.pow(radius, 2);
+	}
+
+	draw() {
+		context.fillStyle = "red";
+		context.beginPath();
+		context.arc(this.pos.x, this.pos.y, this.radius, 0, 7);
+		context.fill();
+	}
+
+	collision(v) {
+		const squaredDist = Math.pow(v.x - this.pos.x, 2) + Math.pow(v.y - this.pos.y, 2);
+		return squaredDist <= this.squaredRadius;
+	}
 }
 
 const setup = () => {
 	// generate the flow field
 	noise.seed(Math.random());
-	for (let y = 0; y < canvas.height; y += radius) {
+	for (let y = 0; y < canvas.height; y += fieldRadius) {
 		const row = [];
-		for (let x = -fieldOffset; x < canvas.width; x += radius) {
+		for (let x = -fieldOffset; x < canvas.width; x += fieldRadius) {
 			const layer1 = noise.perlin3(x / 250, y / 260, 0);
 			const layer2 = noise.perlin3(x / 100, y / 100, 0) * 0.75;
 			const layer3 = noise.perlin3(x / 50, y / 50, 0) * 0.5;
@@ -104,6 +147,14 @@ const setup = () => {
 		field.push(row);
 	}
 
+	// create the orbs
+	for (let i = 0; i < numOrbs; i++) {
+		const pos = new Vec(Math.random() * (canvas.width - 100) + 80, Math.random() * (canvas.height - 100) + 50);
+		const radius = Math.floor(Math.random() * 60) + 30;
+		orbs.push(new Orb(pos, radius));
+	}
+
+	// draw the background
 	context.fillStyle = "black";
 	context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -116,14 +167,14 @@ const drawField = () => {
 	context.fillStyle = "black";
 	context.strokeStyle = "black";
 	context.lineWidth = 1;
-	for (let x = 0; x < canvas.width / radius; x++) {
-		for (let y = 0; y < canvas.height / radius; y++) {
+	for (let x = 0; x < canvas.width / fieldRadius; x++) {
+		for (let y = 0; y < canvas.height / fieldRadius; y++) {
 			context.beginPath();
-			context.arc(x * radius, y * radius, 2, 0, 7);
+			context.arc(x * fieldRadius, y * fieldRadius, 2, 0, 7);
 			context.fill();
 			context.beginPath();
-			context.moveTo(x * radius, y * radius);
-			context.lineTo(x * radius + 8 * Math.cos(field[y][x]), y * radius + 8 * Math.sin(field[y][x]));
+			context.moveTo(x * fieldRadius, y * fieldRadius);
+			context.lineTo(x * fieldRadius + 8 * Math.cos(field[y][x]), y * fieldRadius + 8 * Math.sin(field[y][x]));
 			context.stroke();
 		}
 	}
@@ -137,13 +188,20 @@ const createParticle = () => {
 };
 
 const simulateAllParticles = () => {
+	// draw the background
 	context.fillStyle = "rgba(0, 0, 0, 0.8)";
 	context.fillRect(0, 0, canvas.width, canvas.height);
 
+	for (const o of orbs) {
+		//o.draw();
+	}
+
+	// add particles if there aren't enough
 	while (particles.length < numParticles) {
 		createParticle();
 	}
 
+	// update all the particles
 	for (let i = 0; i < particles.length; i++) {
 		p = particles[i];
 		p.simulate();
